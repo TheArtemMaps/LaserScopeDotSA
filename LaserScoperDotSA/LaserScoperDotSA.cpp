@@ -77,7 +77,7 @@ void DoLaserScopeDot() {
 			int intensity = GetRandomNumberInRange(0, 35);
 #endif
 			CSprite::RenderOneXLUSprite(source.x, source.y, source.z,
-				SCREEN_SCALE_X(size * 2.5f), SCREEN_SCALE_Y(size * 2.5f), intensity - 36, 0, 0, 255, 1.0f, 127, 0, 0);
+				SCREEN_SCALE_X(size), SCREEN_SCALE_Y(size), intensity - 36, 0, 0, 127, 1.0f, intensity - 36, 0, 0);
 
 			RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
 		}
