@@ -9,6 +9,7 @@
 #include "CTimeCycle.h"
 #include "MemoryMgr.h"
 #include "CCoronas.h"
+using namespace std;
 using namespace plugin;
 RwTexture* gpLaserDotTex;
 float SpriteBrightness = CTimeCycle::m_CurrentColours.m_fSpriteBrightness;
@@ -45,6 +46,27 @@ static RwTexture* RwTextureRead(const char* name, const char* mask) {
 	return plugin::CallAndReturn<RwTexture*, 0x07F3AC0>(name, mask);
 }
 
+void RegisterCorona(unsigned int id, CEntity* attachTo, unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha, CVector const& posn, float radius, float farClip, int coronaType, int flaretype, bool enableReflection, bool checkObstacles, int _param_not_used, float angle, bool longDistance, float nearClip, unsigned char fadeState, float fadeSpeed, bool onlyFromBelow, bool reflectionDelay)
+{
+	((void(__cdecl*)(unsigned int, CEntity*, unsigned char, unsigned char, unsigned char, unsigned char, CVector const&, float, float, int, int, bool, bool, int, float, bool, float, unsigned char, float, bool, bool))0x6FC580)(id, attachTo, red, green, blue, alpha, posn, radius, farClip, coronaType, flaretype, enableReflection, checkObstacles, _param_not_used, angle, longDistance, nearClip, fadeState, fadeSpeed, onlyFromBelow, reflectionDelay);
+}
+
+struct tIniData
+{
+	bool bEnable;
+	CRGBA Color;
+	int nType;
+	int flareType;
+	float fRangeMul;
+	float fRadius;
+	float fFarClip;
+	bool bEnableDot;
+	CRGBA DotColor;
+	unsigned char nDotIntensity;
+};
+
+tIniData Sniper;
+
 void Init() {
 	CTxdStore::PushCurrentTxd();
 	int32_t slot2 = CTxdStore::AddTxdSlot("VCLaserScopeDot");
@@ -53,6 +75,17 @@ void Init() {
 	CTxdStore::SetCurrentTxd(slot);
 	gpLaserDotTex = RwTextureRead("laserdot", "laserdotm");
 	CTxdStore::PopCurrentTxd();
+	//Smiper rifle
+	Sniper.bEnable = (bool)GetPrivateProfileIntA("MAIN", "Enable", Sniper.bEnable, "VCLaserScopeDot.ini");
+	Sniper.Color = CRGBA(GetPrivateProfileIntA("MAIN", "Red", 128, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Green", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Blue", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Alpha", 255, "VCLaserScopeDot.ini"));
+	Sniper.nType = GetPrivateProfileIntA("MAIN", "CoronaType", 0, "VCLaserScopeDot.ini");
+	Sniper.flareType = GetPrivateProfileIntA("MAIN", "CoronaFlareType", 0, "VCLaserScopeDot.ini");
+	Sniper.fRangeMul = (float)GetPrivateProfileIntA("MAIN", "RangeMultiplier", 10.0f, "VCLaserScopeDot.ini");
+	Sniper.fRadius = (float)GetPrivateProfileIntA("MAIN", "Radius", 1.2f, "VCLaserScopeDot.ini");
+	Sniper.fFarClip = (float)GetPrivateProfileIntA("MAIN", "FarClip", 500.0f, "VCLaserScopeDot.ini");
+	Sniper.bEnableDot = (bool)GetPrivateProfileIntA("MAIN", "EnableDot", Sniper.bEnableDot, "VCLaserScopeDot.ini");
+	Sniper.DotColor = CRGBA(GetPrivateProfileIntA("MAIN", "DotRed", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotGreen", 255, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotBlue", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotAlpha", 255, "VCLaserScopeDot.ini"));
+	Sniper.nDotIntensity = GetPrivateProfileIntA("MAIN", "DotIntensity", 127, "VCLaserScopeDot.ini");
 }
 
 void Shutdown() {
@@ -61,42 +94,120 @@ void Shutdown() {
 		gpLaserDotTex = nullptr;
 	}
 }
-			
+
+class CWep : public CWeapon
+{
+public:
+	bool LaserScopeDot(CVector* pOut, float* fDist, CRGBA const& Color, int nType, int flareType, float fRangeMul, float fRadius, float fFarClip, bool bEnable)
+	{
+		bool result;
+		float fRange;
+		CVector CamFront, Cam;
+		CColPoint Point;
+		RwV3d out;
+		float w;
+		float h;
+		CEntity* pEnt;
+
+		fRange = CWeaponInfo::GetWeaponInfo(this->m_eWeaponType, 0)->m_fWeaponRange * fRangeMul;
+
+		Cam.x = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.x + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource.x;
+		Cam.y = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.y + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource.y;
+		Cam.z = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.z + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource.z;
+		CamFront.x = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.x;
+		CamFront.y = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.y;
+		CamFront.z = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.z;
+		CamFront.Normalise();
+		CamFront.x = CamFront.x * fRange;
+		CamFront.y = CamFront.y * fRange;
+		CamFront.z = CamFront.z * fRange;
+		CamFront.x = CamFront.x + Cam.x;
+		CamFront.y = CamFront.y + Cam.y;
+		CamFront.z = CamFront.z + Cam.z;
+		if (CWorld::ProcessLineOfSight(Cam, CamFront, Point, pEnt, true, true, true, true, false, false, false, true) && (out.x = Point.m_vecPoint.x, out.y = Point.m_vecPoint.y, out.z = Point.m_vecPoint.z, CSprite::CalcScreenCoors(reinterpret_cast<RwV3d const&>(Point.m_vecPoint), &out, &w, &h, true, false)))
+		{
+			pOut->x = out.x;
+			pOut->y = out.y;
+			pOut->z = out.z;
+			*fDist = w * 0.050000001f;
+			if (bEnable)
+			{
+					RegisterCorona(
+					this->m_nState + 3,
+					nullptr,
+					Color.r,
+					Color.g,
+					Color.b,
+					Color.a,
+					Point.m_vecPoint,
+					fRadius,
+					fFarClip,
+					nType,
+					flareType,
+					true,
+					false,
+					0,
+					0.0f,
+					false,
+					1.5f,
+					0,
+					15.0f,
+					false,
+					false
+					);
+			}
+			result = true;
+		}
+		else
+		{
+			result = false;
+		}
+		return result;
+	}
+
+};
+
+
 void DoLaserScopeDot() {
 	SpriteBrightness = min(SpriteBrightness + 1, 30);
-	float size = 25.0f;
+	float fDist;
 	CVector source = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource;
 	int16_t camMode;
 	camMode = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_nMode;
-	if (camMode == MODE_SNIPER && FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot].LaserScopeDot(&source, &size)) {
-		RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)FALSE);
-			RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)TRUE);
-			RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
-			RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
+	//if (camMode == MODE_SNIPER && FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot].LaserScopeDot(&source, &size)) {
+	if (camMode == MODE_SNIPER && reinterpret_cast<CWep&>(FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot]).LaserScopeDot(&source, &fDist, Sniper.Color, Sniper.nType, Sniper.flareType, Sniper.fRangeMul, Sniper.fRadius, Sniper.fFarClip, Sniper.bEnable))
+	{
+		if (Sniper.bEnable)
+		{
+			//if (camMode == MODE_SNIPER) {
+				RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)FALSE);
+				RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)TRUE);
+				RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
+				RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
 #ifdef FIX_BUGS
-			RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
+				RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
 #else
-			RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVDESTALPHA);
+				RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVDESTALPHA);
 #endif
-			RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpLaserDotTex));
+				RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpLaserDotTex));
 #ifdef FIX_BUGS
-			int intensity = GetRandomNumberInRange(0, 37);
+				int intensity = GetRandomNumberInRange(0, 37);
 #else
-			int intensity = GetRandomNumberInRange(0, 35);
+				int intensity = GetRandomNumberInRange(0, 35);
 #endif
-		CSprite::RenderOneXLUSprite(source.x, source.y, source.z,
-			SCREEN_SCALE_X(size), SCREEN_SCALE_Y(size), intensity - 36, 0, 0, 127, 1.0f, intensity - 36, 0, 0);
+				CSprite::RenderOneXLUSprite(source.x, source.y, source.z,
+					SCREEN_STRETCH_X(fDist), SCREEN_STRETCH_Y(fDist), Sniper.DotColor.r, Sniper.DotColor.g, Sniper.DotColor.b, Sniper.DotColor.a, 1.0f, Sniper.nDotIntensity, 0, 0);
 
-		RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
+				RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
+			}
+			else {
+				RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
+				RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
+				RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)TRUE);
+				SpriteBrightness = 0;
+			}
+		}
 	}
-	else {
-		RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
-		RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
-		RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)TRUE);
-		SpriteBrightness = 0;
-	}
-}
-
 
 class LaserScopeDotSA {
 public:
@@ -110,11 +221,14 @@ public:
 			Shutdown();
 		};
 
+		Events::reInitGameEvent += []() { // To reload ini by loading save file
+			Init();
+		};
+
 		Events::drawHudEvent += []() {
 			DoLaserScopeDot();
 		};
-		Patch<BYTE>(0x73AA0C + 1, 0); // May not necessary?!?
+		Patch<BYTE>(0x73AA0C + 1, 0); // May not be necessary?!?
 		Patch<BYTE>(0x73AA06 + 1, 0);
 	}
 } laserScopeDotSA;
-
