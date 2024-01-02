@@ -85,7 +85,7 @@ void Init() {
 		Sniper.Color[i] = CRGBA(GetPrivateProfileIntA("MAIN", "Red", 128, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Green", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Blue", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "Alpha", 255, "VCLaserScopeDot.ini"));
 		Sniper.nType[i] = GetPrivateProfileIntA("MAIN", "CoronaType", 0, "VCLaserScopeDot.ini");
 		Sniper.flareType[i] = GetPrivateProfileIntA("MAIN", "CoronaFlareType", 0, "VCLaserScopeDot.ini");
-		Sniper.fRangeMul[i] = (float)GetPrivateProfileIntA("MAIN", "RangeMultiplier", 10.0f, "VCLaserScopeDot.ini");
+		Sniper.fRangeMul[i] = (float)GetPrivateProfileIntA("MAIN", "RangeMultiplier", 3.0f, "VCLaserScopeDot.ini");
 		Sniper.fRadius[i] = (float)GetPrivateProfileIntA("MAIN", "Radius", 1.2f, "VCLaserScopeDot.ini");
 		Sniper.CamMode[i] = GetPrivateProfileIntA("MAIN", "CamMode", 7, "VCLaserScopeDot.ini");
 		Sniper.fFarClip[i] = (float)GetPrivateProfileIntA("MAIN", "FarClip", 50.0f, "VCLaserScopeDot.ini");
@@ -144,7 +144,7 @@ public:
 		CamFront.x = CamFront.x + Cam.x;
 		CamFront.y = CamFront.y + Cam.y;
 		CamFront.z = CamFront.z + Cam.z;
-		if (CWorld::ProcessLineOfSight(Cam, CamFront, Point, pEnt, true, true, true, true, true, true, true, true) && (out.x = Point.m_vecPoint.x, out.y = Point.m_vecPoint.y, out.z = Point.m_vecPoint.z, CSprite::CalcScreenCoors(reinterpret_cast<RwV3d const&>(Point.m_vecPoint), &out, &w, &h, true, false)))
+		if (CWorld::ProcessLineOfSight(Cam, CamFront, Point, pEnt, true, true, true, true, true, true, true, true) && (out.x = Point.m_vecPoint.x, out.y = Point.m_vecPoint.y, out.z = Point.m_vecPoint.z, CSprite::CalcScreenCoors(reinterpret_cast<RwV3d const&>(Point.m_vecPoint), &out, &w, &h, true, true)))
 		{
 			pOut->x = out.x;
 			pOut->y = out.y;
