@@ -59,10 +59,19 @@ struct tIniData
 	int flareType[512];
 	float fRangeMul[512];
 	float fRadius[512];
+	float fDotSize[512];
 	float fFarClip[512];
 	int32_t WeaponID[512];
 	int16_t CamMode[512];
 	bool bEnableDot[512];
+	bool EnableCoronaReflection[512];
+	bool CheckObstaclesForCorona[512];
+	bool LongDistanceCorona[512];
+	bool CoronaOnlyFromBelow[512];
+	bool CoronaReflectionDelay[512];
+	float fCoronaAngle[512];
+	float fCoronaNearClip[512];
+	float fCoronaFadeSpeed[512];
 	CRGBA DotColor[512];
 	unsigned char nDotIntensity[512];
 };
@@ -87,9 +96,18 @@ void Init() {
 		Sniper.flareType[i] = GetPrivateProfileIntA("MAIN", "CoronaFlareType", 0, "VCLaserScopeDot.ini");
 		Sniper.fRangeMul[i] = (float)GetPrivateProfileIntA("MAIN", "RangeMultiplier", 3.0f, "VCLaserScopeDot.ini");
 		Sniper.fRadius[i] = (float)GetPrivateProfileIntA("MAIN", "Radius", 1.2f, "VCLaserScopeDot.ini");
+		Sniper.fDotSize[i] = (float)GetPrivateProfileIntA("MAIN", "DotSize", 25.5f, "VCLaserScopeDot.ini");
 		Sniper.CamMode[i] = GetPrivateProfileIntA("MAIN", "CamMode", 7, "VCLaserScopeDot.ini");
 		Sniper.fFarClip[i] = (float)GetPrivateProfileIntA("MAIN", "FarClip", 50.0f, "VCLaserScopeDot.ini");
 		Sniper.bEnableDot[i] = (bool)GetPrivateProfileIntA("MAIN", "EnableDot", Sniper.bEnableDot[i], "VCLaserScopeDot.ini");
+		Sniper.EnableCoronaReflection[i] = (bool)GetPrivateProfileIntA("MAIN", "EnableCoronaReflection", Sniper.EnableCoronaReflection[i], "VCLaserScopeDot.ini");
+		Sniper.CheckObstaclesForCorona[i] = (bool)GetPrivateProfileIntA("MAIN", "CheckObstaclesForCorona", Sniper.CheckObstaclesForCorona[i], "VCLaserScopeDot.ini");
+		Sniper.LongDistanceCorona[i] = (bool)GetPrivateProfileIntA("MAIN", "LongDistanceCorona", Sniper.LongDistanceCorona[i], "VCLaserScopeDot.ini");
+		Sniper.CoronaOnlyFromBelow[i] = (bool)GetPrivateProfileIntA("MAIN", "CoronaOnlyFromBelow", Sniper.CoronaOnlyFromBelow[i], "VCLaserScopeDot.ini");
+		Sniper.CoronaReflectionDelay[i] = (bool)GetPrivateProfileIntA("MAIN", "CoronaReflectionDelay", Sniper.CoronaReflectionDelay[i], "VCLaserScopeDot.ini");
+		Sniper.fCoronaNearClip[i] = (float)GetPrivateProfileIntA("MAIN", "CoronaNearClip", 1.5f, "VCLaserScopeDot.ini");
+		Sniper.fCoronaFadeSpeed[i] = (float)GetPrivateProfileIntA("MAIN", "CoronaFadeSpeed", 15.0f, "VCLaserScopeDot.ini");
+		Sniper.fCoronaAngle[i] = (float)GetPrivateProfileIntA("MAIN", "CoronaAngle", 0.0f, "VCLaserScopeDot.ini");
 		Sniper.DotColor[i] = CRGBA(GetPrivateProfileIntA("MAIN", "DotRed", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotGreen", 255, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotBlue", 0, "VCLaserScopeDot.ini"), GetPrivateProfileIntA("MAIN", "DotAlpha", 255, "VCLaserScopeDot.ini"));
 		Sniper.nDotIntensity[i] = GetPrivateProfileIntA("MAIN", "DotIntensity", 127, "VCLaserScopeDot.ini");
 	}
@@ -118,7 +136,7 @@ void Shutdown() {
 class CWep : public CWeapon
 {
 public:
-	bool LaserScopeDot(CVector* pOut, float* fDist, CRGBA const& Color, int nType, int flareType, float fRangeMul, float fRadius, float fFarClip, bool bEnable)
+	bool LaserScopeDot(CVector* pOut, float* fDist, CRGBA const& Color, int nType, int flareType, float fRangeMul, float fRadius, float fFarClip, bool bEnable, bool bEnableCoronaReflection, bool bCheckObstaclesForCorona, bool bLongDistanceCorona, bool bCoronaOnlyFromBelow, bool bCoronaReflectionDelay, float fCoronaAngle, float fCoronaNearClip, float fCoronaFadeSpeed)
 	{
 		bool result;
 		float fRange;
@@ -164,16 +182,16 @@ public:
 					fFarClip,
 					nType,
 					flareType,
-					true,
-					false,
+					bEnableCoronaReflection,
+					bCheckObstaclesForCorona,
 					0,
-					0.0f,
-					false,
-					1.5f,
+					fCoronaAngle,
+					bLongDistanceCorona,
+					fCoronaNearClip,
 					0,
-					15.0f,
-					false,
-					false
+					fCoronaFadeSpeed,
+					bCoronaOnlyFromBelow,
+					bCoronaReflectionDelay
 					);
 			}
 			result = true;
@@ -201,7 +219,29 @@ void DoLaserScopeDot() {;
 	int weapModel = CWeaponInfo::GetWeaponInfo((eWeaponType)player->m_aWeapons[player->m_nActiveWeaponSlot].m_eWeaponType, FindPlayerPed()->GetWeaponSkill())->m_nModelId1;
 	camMode = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_nMode;
 		//if (camMode == MODE_SNIPER && FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot].LaserScopeDot(&source, &size)) {
-	if (weapModel == Sniper.WeaponID[wepType] && camMode == Sniper.CamMode[wepType] && reinterpret_cast<CWep&>(FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot]).LaserScopeDot(&pos, &size, Sniper.Color[wepType], Sniper.nType[wepType], Sniper.flareType[wepType], Sniper.fRangeMul[wepType], Sniper.fRadius[wepType], Sniper.fFarClip[wepType], Sniper.bEnable[wepType]))
+	if (weapModel == Sniper.WeaponID[wepType]
+		&& 
+		camMode == Sniper.CamMode[wepType] 
+		&& 
+		reinterpret_cast<CWep&>(FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot]).LaserScopeDot(
+		&pos,
+		&Sniper.fDotSize[wepType],
+		Sniper.Color[wepType],
+		Sniper.nType[wepType],
+		Sniper.flareType[wepType],
+		Sniper.fRangeMul[wepType],
+		Sniper.fRadius[wepType],
+		Sniper.fFarClip[wepType],
+		Sniper.bEnable[wepType],
+		Sniper.EnableCoronaReflection[wepType],
+		Sniper.CheckObstaclesForCorona[wepType],
+		Sniper.LongDistanceCorona[wepType],
+		Sniper.CoronaOnlyFromBelow[wepType],
+		Sniper.CoronaReflectionDelay[wepType],
+		Sniper.fCoronaAngle[wepType],
+		Sniper.fCoronaNearClip[wepType],
+		Sniper.fCoronaFadeSpeed[wepType])
+		)
 	{
 			if (Sniper.bEnable[wepType])
 			{
@@ -222,7 +262,7 @@ void DoLaserScopeDot() {;
 				int intensity = GetRandomNumberInRange(0, 35);
 #endif
 				CSprite::RenderOneXLUSprite(pos.x, pos.y, z,
-					size, size, Sniper.DotColor[wepType].r, Sniper.DotColor[wepType].g, Sniper.DotColor[wepType].b, Sniper.DotColor[wepType].a, rhw, Sniper.nDotIntensity[wepType], 0, 0);
+					Sniper.fDotSize[wepType], Sniper.fDotSize[wepType], Sniper.DotColor[wepType].r, Sniper.DotColor[wepType].g, Sniper.DotColor[wepType].b, Sniper.DotColor[wepType].a, rhw, Sniper.nDotIntensity[wepType], 0, 0);
 
 				RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
 			}
