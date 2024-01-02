@@ -21,6 +21,7 @@ float SpriteBrightness = CTimeCycle::m_CurrentColours.m_fSpriteBrightness;
 #define SCREEN_STRETCH_Y(a)   ((a) * (float) SCREEN_HEIGHT / DEFAULT_SCREEN_HEIGHT)
 #define SCREEN_SCALE_X(a) SCREEN_SCALE_AR(SCREEN_STRETCH_X(a))
 #define SCREEN_SCALE_Y(a) SCREEN_STRETCH_Y(a)
+
 #define FIX_BUGS // Undefine to play with bugs
 
 static uint16_t GetRandomNumber(void)
@@ -66,9 +67,7 @@ struct tIniData
 	unsigned char nDotIntensity[512];
 };
 
-
-
-tIniData Sniper;
+tIniData Sniper, AK47, Colt45, Spas12, Deagle, M4, Minigun, MP5, CuntRifle, RH, RHS, Sawedoff, Shotgun, Silenced, Tec9, Uzi;
 
 void Init() {
 	CTxdStore::PushCurrentTxd();
@@ -130,7 +129,7 @@ public:
 		float h;
 		CEntity* pEnt;
 
-		fRange = CWeaponInfo::GetWeaponInfo(this->m_eWeaponType, 0)->m_fWeaponRange * fRangeMul;
+		fRange = CWeaponInfo::GetWeaponInfo(this->m_eWeaponType, FindPlayerPed()->GetWeaponSkill())->m_fWeaponRange * fRangeMul;
 
 		Cam.x = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.x + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource.x;
 		Cam.y = 0.5f * TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecFront.y + TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource.y;
@@ -199,7 +198,7 @@ void DoLaserScopeDot() {;
 	const auto rhw = 1.0f / z;
 	eWeaponType wepType;
 	wepType = player->m_aWeapons[player->m_nActiveWeaponSlot].m_eWeaponType;
-	int weapModel = CWeaponInfo::GetWeaponInfo((eWeaponType)player->m_aWeapons[player->m_nActiveWeaponSlot].m_eWeaponType, 1)->m_nModelId1;
+	int weapModel = CWeaponInfo::GetWeaponInfo((eWeaponType)player->m_aWeapons[player->m_nActiveWeaponSlot].m_eWeaponType, FindPlayerPed()->GetWeaponSkill())->m_nModelId1;
 	camMode = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_nMode;
 		//if (camMode == MODE_SNIPER && FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot].LaserScopeDot(&source, &size)) {
 	if (weapModel == Sniper.WeaponID[wepType] && camMode == Sniper.CamMode[wepType] && reinterpret_cast<CWep&>(FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot]).LaserScopeDot(&pos, &size, Sniper.Color[wepType], Sniper.nType[wepType], Sniper.flareType[wepType], Sniper.fRangeMul[wepType], Sniper.fRadius[wepType], Sniper.fFarClip[wepType], Sniper.bEnable[wepType]))
@@ -237,7 +236,23 @@ void DoLaserScopeDot() {;
 	}
 
 		
-	
+/*void Process(CPed* ped) {
+	if (ped) {
+		float size = 25.0f;
+		CVector pos;
+		CVector pedPos = ped->GetPosition();
+		eWeaponType wepType;
+		const auto z = CDraw::ms_fFarClipZ;
+		const auto rhw = 1.0f / z;
+		wepType = ped->m_aWeapons[ped->m_nActiveWeaponSlot].m_eWeaponType;
+		CWeaponInfo* weapModel = CWeaponInfo::GetWeaponInfo((eWeaponType)ped->m_aWeapons[ped->m_nActiveWeaponSlot].m_eWeaponType, 1);
+		if (reinterpret_cast<CWep&>(FindPlayerPed()->m_aWeapons[FindPlayerPed()->m_nActiveWeaponSlot]).LaserScopeDot(&pedPos, &size, Sniper.Color[wepType], Sniper.nType[wepType], Sniper.flareType[wepType], Sniper.fRangeMul[wepType], Sniper.fRadius[wepType], Sniper.fFarClip[wepType], Sniper.bEnable[wepType])) {
+			CSprite::RenderOneXLUSprite(pedPos.x, pedPos.y, pedPos.z,
+				size, size, Sniper.DotColor[wepType].r, Sniper.DotColor[wepType].g, Sniper.DotColor[wepType].b, Sniper.DotColor[wepType].a, rhw, Sniper.nDotIntensity[wepType], 0, 0);
+		}
+	}
+}*/
+
 	
 
 
@@ -260,6 +275,7 @@ public:
 		Events::drawHudEvent += []() {
 			DoLaserScopeDot();
 		};
+
 		Patch<BYTE>(0x73AA0C + 1, 0); // May not be necessary?!?
 		Patch<BYTE>(0x73AA06 + 1, 0);
 	}
